@@ -4,8 +4,10 @@ using UnityEngine;
 
 public class Pawn : MonoBehaviour
 {
-    private float xMoveInput { get; set; }
-    private float yMoveInput { get; set; }
+    public Vector2 moveInput { get; protected set; }
+    public Vector2 lookInput { get; protected set; }
+
+    public PlayerController playerController { get; private set; }
 
     #region Unity Functions
     // Start is called before the first frame update
@@ -24,22 +26,83 @@ public class Pawn : MonoBehaviour
     #region Input Functions
     protected virtual void MoveX(float axis)
     {
-        xMoveInput = axis;
+        moveInput = new Vector2(axis, moveInput.y);
     }
 
     protected virtual void MoveY(float axis)
     {
-        yMoveInput = axis;
+        moveInput = new Vector2(moveInput.x, axis);
     }
 
     protected virtual void LookX(float axis)
     {
-
+        lookInput = new Vector2(axis, moveInput.y);
     }
 
     protected virtual void LookY(float axis)
     {
+        lookInput = new Vector2(moveInput.x, axis);
+    }
+    #endregion
 
+    #region Possession Functions
+    public void PossessBy(PlayerController playerController)
+    {
+        if (playerController)
+        {
+            if (playerController.possessed == this)
+            {
+                if (this.playerController)
+                {
+                    this.playerController.Unpossess();
+                }
+                this.playerController = playerController;
+                PossessionBindings(playerController);
+            }
+        }
+    }
+
+    public void UnpossessBy(PlayerController playerController)
+    {
+        if (playerController)
+        {
+            if (playerController.possessed == this)
+            {
+                ClearPossessionBindings(playerController);
+                this.playerController = null;
+            }
+        }
+    }
+
+    private void PossessionBindings(PlayerController playerController)
+    {
+        playerController.AxisMoveX += MoveX;
+        playerController.AxisMoveY += MoveY;
+        playerController.AxisLookX += LookX;
+        playerController.AxisLookY += LookY;
+    }
+    private void ClearPossessionBindings(PlayerController playerController)
+    {
+        playerController.AxisMoveX -= MoveX;
+        playerController.AxisMoveY -= MoveY;
+        playerController.AxisLookX -= LookX;
+        playerController.AxisLookY -= LookY;
+    }
+    #endregion
+
+    #region Movement Vectors
+    public Vector2 GetMovementVector()
+    {
+        if(moveInput.magnitude > 1)
+        {
+            return moveInput.normalized;
+        }
+        return moveInput; 
+    }
+
+    public Vector2 GetLookVector()
+    {
+        return lookInput;
     }
     #endregion
 }
