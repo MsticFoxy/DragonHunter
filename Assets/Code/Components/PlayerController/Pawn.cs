@@ -36,12 +36,12 @@ public class Pawn : MonoBehaviour
 
     protected virtual void LookX(float axis)
     {
-        lookInput = new Vector2(axis, moveInput.y);
+        lookInput = new Vector2(axis, lookInput.y);
     }
 
     protected virtual void LookY(float axis)
     {
-        lookInput = new Vector2(moveInput.x, axis);
+        lookInput = new Vector2(lookInput.x, axis);
     }
     #endregion
 

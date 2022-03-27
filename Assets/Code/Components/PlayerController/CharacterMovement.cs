@@ -14,7 +14,7 @@ public class CharacterMovement : MonoBehaviour
 
     public LayerMask collisionMask;
 
-    public Vector3 gravity = new Vector3(0, 9.81f, 0);
+    public Vector3 gravity = new Vector3(0, -9.81f, 0);
     public float walkingSlope = 40;
     public float maxStepHeight = 0.2f;
     public float walkingSpeed = 10;
@@ -31,7 +31,7 @@ public class CharacterMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Move(pawn.GetMovementVector());
+        
     }
 
     private void FixedUpdate()
@@ -140,7 +140,7 @@ public class CharacterMovement : MonoBehaviour
         return Vector3.ProjectOnPlane(velocity, plane);
     }
 
-    private void Move(Vector2 direction)
+    public void Move(Vector2 direction)
     {
         Vector3 movePosition = transform.position;
         Vector3 moveDirection = new Vector3(direction.x, 0, direction.y);
@@ -168,7 +168,7 @@ public class CharacterMovement : MonoBehaviour
                 }
                 else
                 {
-                    endPosition = transform.position + Vector3.ProjectOnPlane(moveDirection.normalized, h.normal).normalized * h.distance;
+                    endPosition = transform.position + Vector3.ProjectOnPlane(moveDirection.normalized, h.normal) * h.distance;
                     break;
                 }
             }
