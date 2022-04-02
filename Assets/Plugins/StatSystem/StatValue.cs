@@ -1,7 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
+
+
+
 
 public class StatModifier<T>
 {
@@ -17,16 +21,27 @@ public class StatModifier<T>
         this.modification = modification;
     }
 
+    /// <summary>
+    /// Applies the modifier to the given stat.
+    /// </summary>
+    /// <param name="stat">The stat that gets modified.</param>
+    /// <returns>Returns the modified stat.</returns>
     public T Apply(T stat)
     {
         return modification(stat);
     }
 }
 
+[Serializable]
 public class StatValue<T> : StatBase
 {
+    #region Stat Value Events
+    public Action OnStatChanged;
+    #endregion
+
     #region Stat Value Properties
-    private T _baseValue;
+    [SerializeField]
+    protected T _baseValue;
     public T baseValue
     {
         get
@@ -40,7 +55,7 @@ public class StatValue<T> : StatBase
         }
     }
 
-    private T _value;
+    protected T _value;
     public T value 
     { 
         get
@@ -64,6 +79,7 @@ public class StatValue<T> : StatBase
     private bool _isDirty;
     #endregion
 
+
     /// <summary>
     /// Adds a modifier to this statvalue wich will be applied with the given priority.
     /// </summary>
@@ -71,19 +87,22 @@ public class StatValue<T> : StatBase
     /// <param name="modifier">The modifier that will be applied to this stat.</param>
     public void AddModifier(int priority, StatModifier<T> modifier)
     {
-        if(modifiers.ContainsKey(priority))
+        if (modifier != null)
         {
-            List<StatModifier<T>> prioMods;
-            modifiers.TryGetValue(priority, out prioMods);
-            prioMods.Add(modifier);
+            if (modifiers.ContainsKey(priority))
+            {
+                List<StatModifier<T>> prioMods;
+                modifiers.TryGetValue(priority, out prioMods);
+                prioMods.Add(modifier);
+            }
+            else
+            {
+                List<StatModifier<T>> newPrio = new List<StatModifier<T>>();
+                newPrio.Add(modifier);
+                modifiers.Add(priority, newPrio);
+            }
+            Invalidate();
         }
-        else
-        {
-            List<StatModifier<T>> newPrio = new List<StatModifier<T>>();
-            newPrio.Add(modifier);
-            modifiers.Add(priority, newPrio);
-        }
-        Invalidate();
     }
 
     /// <summary>
@@ -92,17 +111,20 @@ public class StatValue<T> : StatBase
     /// <param name="modifier">The modifier that will be removed</param>
     public void RemoveModifier(StatModifier<T> modifier)
     {
-        foreach(KeyValuePair<int, List<StatModifier<T>>> entry in modifiers)
+        if (modifier != null)
         {
-            Debug.Log(entry.Value);
-            if(entry.Value.Contains(modifier))
+            foreach (KeyValuePair<int, List<StatModifier<T>>> entry in modifiers)
             {
-                entry.Value.Remove(modifier);
-                if(entry.Value.Count == 0)
+                Debug.Log(entry.Value);
+                if (entry.Value.Contains(modifier))
                 {
-                    modifiers.Remove(entry.Key);
-                    Invalidate();
-                    return;
+                    entry.Value.Remove(modifier);
+                    if (entry.Value.Count == 0)
+                    {
+                        modifiers.Remove(entry.Key);
+                        Invalidate();
+                        return;
+                    }
                 }
             }
         }
@@ -111,16 +133,20 @@ public class StatValue<T> : StatBase
     /// <summary>
     /// Marks the stat as dirty so it has to recalculate the next time it is read.
     /// </summary>
-    protected void Invalidate()
+    public void Invalidate()
     {
         _isDirty = true;
+        if(OnStatChanged != null)
+        {
+            OnStatChanged.Invoke();
+        }
     }
 
     /// <summary>
     /// Calculates the stat and applies all modifiers.
     /// </summary>
     /// <returns>Returns the modified stat.</returns>
-    protected T CalculateValue()
+    protected virtual T CalculateValue()
     {
         T valueCopy = _baseValue;
         if (typeof(ICloneable).IsAssignableFrom(typeof(T)))
@@ -133,6 +159,73 @@ public class StatValue<T> : StatBase
             if(entry.Value != null)
             {
                 foreach(StatModifier<T> mod in entry.Value)
+                {
+                    valueCopy = mod.Apply(valueCopy);
+                }
+            }
+        }
+
+        return valueCopy;
+    }
+}
+
+
+[Serializable]
+public class CombineStat<T> : StatValue<T>
+{
+
+    private List<StatValue<T>> stats = new List<StatValue<T>>();
+
+    public CombineStat(List<string> usedStats ,Func<T> combinationRule)
+    {
+        OnAddedToStatBlock += () =>
+        {
+            foreach(string name in usedStats)
+            {
+                StatValue<T> stat = new StatValue<T>();
+                if (owner.ContainsStat<StatValue<T>>(name))
+                {
+                    AddCombinationStat(owner.GetStat<StatValue<T>>(name));
+                }
+                else
+                {
+                    Debug.LogWarning("The stat " + name + " could not be found on the statblock.");
+                }
+            }
+        };
+    }
+    public void AddCombinationStat(StatValue<T> stat)
+    {
+        if(stat != null)
+        {
+            stats.Add(stat);
+            stat.OnStatChanged += () =>
+            {
+                Invalidate();
+            };
+            Invalidate();
+        }
+    }
+
+
+    //////////////////////////////////implement
+    /// <summary>
+    /// Calculates the stat and applies all modifiers.
+    /// </summary>
+    /// <returns>Returns the modified stat.</returns>
+    protected override T CalculateValue()
+    {
+        T valueCopy = _baseValue;
+        if (typeof(ICloneable).IsAssignableFrom(typeof(T)))
+        {
+            valueCopy = (T)((ICloneable)_baseValue).Clone();
+        }
+
+        foreach (KeyValuePair<int, List<StatModifier<T>>> entry in modifiers)
+        {
+            if (entry.Value != null)
+            {
+                foreach (StatModifier<T> mod in entry.Value)
                 {
                     valueCopy = mod.Apply(valueCopy);
                 }
