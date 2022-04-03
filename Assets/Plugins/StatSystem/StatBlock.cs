@@ -13,10 +13,16 @@ public class StatBlock : MonoBehaviour
     /// Determines if the component is initialized.
     /// </summary>
     private bool initialized;
+
+    public Action<StatBase> OnStatAdded;
+
+    private Dictionary<string, StatBase> stats = new Dictionary<string, StatBase>();
+    public Dictionary<int, List<StatusEffect>> effects = new Dictionary<int, List<StatusEffect>>();
+
     // Start is called before the first frame update
     void Start()
     {
-        
+        Initialize();
     }
 
     // Update is called once per frame
@@ -67,9 +73,6 @@ public class StatBlock : MonoBehaviour
         }
     }
 
-    private Dictionary<string, StatBase> stats = new Dictionary<string, StatBase>();
-    public Dictionary<int, List<StatusEffect>> effects = new Dictionary<int, List<StatusEffect>>();
-
     /// <summary>
     /// Adds the given stat to this statblock if its name is unique in this statblock.
     /// </summary>
@@ -92,6 +95,10 @@ public class StatBlock : MonoBehaviour
                 if(stat.OnAddedToStatBlock != null)
                 {
                     stat.OnAddedToStatBlock.Invoke();
+                }
+                if (OnStatAdded != null)
+                {
+                    OnStatAdded.Invoke(stat);
                 }
                 return true;
             }

@@ -29,7 +29,8 @@ public class StatusEffectBurn : StatusEffect
             {
                 dmg += dps * Time.deltaTime;
             }
-            health.value.current -= dmg;
+            health.baseValue.current -= dmg;
+            health.Invalidate();
         }
     }
 

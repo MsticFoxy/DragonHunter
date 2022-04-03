@@ -21358,6 +21358,11 @@ MonoBehaviour:
   testClassInt:
     _baseValue:
       _min: 0
+      _max: 55
+      _current: 50
+  combine:
+    _baseValue:
+      _min: 0
       _max: 1
       _current: 0
 --- !u!114 &1665304552

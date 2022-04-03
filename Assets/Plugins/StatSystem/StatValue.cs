@@ -35,10 +35,6 @@ public class StatModifier<T>
 [Serializable]
 public class StatValue<T> : StatBase
 {
-    #region Stat Value Events
-    public Action OnStatChanged;
-    #endregion
-
     #region Stat Value Properties
     [SerializeField]
     protected T _baseValue;
@@ -56,11 +52,11 @@ public class StatValue<T> : StatBase
     }
 
     protected T _value;
-    public T value 
-    { 
+    public T value
+    {
         get
         {
-            if(_isDirty)
+            if (_isDirty)
             {
                 _value = CalculateValue();
             }
@@ -72,13 +68,17 @@ public class StatValue<T> : StatBase
         }
     }
 
-    private Dictionary<int, List<StatModifier<T>>> modifiers = new Dictionary<int, List<StatModifier<T>>>();
+    protected Dictionary<int, List<StatModifier<T>>> modifiers = new Dictionary<int, List<StatModifier<T>>>();
     #endregion
 
     #region Stat State Properties
     private bool _isDirty;
     #endregion
 
+    public StatValue()
+    {
+        _isDirty = true;
+    }
 
     /// <summary>
     /// Adds a modifier to this statvalue wich will be applied with the given priority.
@@ -174,41 +174,28 @@ public class StatValue<T> : StatBase
 public class CombineStat<T> : StatValue<T>
 {
 
-    private List<StatValue<T>> stats = new List<StatValue<T>>();
+    private List<StatBase> stats = new List<StatBase>();
+    private Func<StatBlock, T, T> combinationFunction;
 
-    public CombineStat(List<string> usedStats ,Func<T> combinationRule)
+    public CombineStat(Func<StatBlock, T, T> combinationRule) : base()
     {
+        combinationFunction = combinationRule;
         OnAddedToStatBlock += () =>
         {
-            foreach(string name in usedStats)
-            {
-                StatValue<T> stat = new StatValue<T>();
-                if (owner.ContainsStat<StatValue<T>>(name))
-                {
-                    AddCombinationStat(owner.GetStat<StatValue<T>>(name));
-                }
-                else
-                {
-                    Debug.LogWarning("The stat " + name + " could not be found on the statblock.");
-                }
-            }
+            owner.OnStatAdded += AddCombinationStat;
         };
     }
-    public void AddCombinationStat(StatValue<T> stat)
+
+    private void AddCombinationStat(StatBase stat)
     {
         if(stat != null)
         {
             stats.Add(stat);
-            stat.OnStatChanged += () =>
-            {
-                Invalidate();
-            };
+            stat.OnStatChanged += Invalidate;
             Invalidate();
         }
     }
 
-
-    //////////////////////////////////implement
     /// <summary>
     /// Calculates the stat and applies all modifiers.
     /// </summary>
@@ -220,7 +207,7 @@ public class CombineStat<T> : StatValue<T>
         {
             valueCopy = (T)((ICloneable)_baseValue).Clone();
         }
-
+        valueCopy = combinationFunction.Invoke(owner, valueCopy);
         foreach (KeyValuePair<int, List<StatModifier<T>>> entry in modifiers)
         {
             if (entry.Value != null)
